@@ -8,31 +8,30 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class UserDAO {
 
     //insert
-    private static final String CREATE_USER_QUERY =
+    private final String CREATE_USER_QUERY =
             "INSERT INTO users(username, email, password) VALUES (?, ?, ?)";
 
     //update
-    private static final String UPDATE_EMAIL_QUERY =
-            "UPDATE users SET email = ? WHERE id = ?";
-    private static final String UPDATE_USERNAME_QUERY =
-            "UPDATE users SET username = ? WHERE id = ?";
-    private static final String UPDATE_PASSWORD_QUERY =
-            "UPDATE users SET password = ? WHERE id = ?";
+    private final String UPDATE_USER_QUERY =
+            "UPDATE users SET username = ?, email = ?, password = ? WHERE id = ?";
 
     //delete
-    private static final String DELETE_USER_QUERY =
+    private final String DELETE_USER_QUERY =
             "DELETE FROM users WHERE id = ?";
 
-    //select
-    private static final String SELECT_ALL_QUERY =
+    //read
+    private final String READ_USER_QUERY = "SELECT * FROM users WHERE id = ?";
+    private final String READ_ALL_QUERY =
             "SELECT * FROM users";
 
-    public static long create (User u){
+    public User create (User u) {
 
         try (Connection conn = DbUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(CREATE_USER_QUERY, PreparedStatement.RETURN_GENERATED_KEYS)){
@@ -42,9 +41,9 @@ public class UserDAO {
             ps.executeUpdate();
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) {
-                return rs.getLong(1);
+                u.setId(rs.getInt(1));
             }
-            System.out.println("Użytkownik poprawnie"+ u.getUsername() + " wprowadzony do bazy.");
+            System.out.println("Użytkownik "+ u.getUsername() + " poprawnie wprowadzony do bazy.");
         } catch (SQLIntegrityConstraintViolationException ex){
             System.out.println("Email musi być unikanlny");
         } catch (SQLException e){
@@ -52,64 +51,78 @@ public class UserDAO {
             e.printStackTrace();
         }
 
-        return -1;
+        return u;
     }
 
-    public static boolean isEmailUnique (String userEmail){
-        try (Connection conn = DbUtil.getConnection();
-        PreparedStatement ps = conn.prepareStatement(SELECT_ALL_QUERY);
-        ResultSet rs = ps.executeQuery()){
-
-            while (rs.next()){
-                if (rs.getString("email").equals(userEmail)){
-                    return false;
+    public User read (Integer id) {
+        User u = new User();
+            try (Connection conn = DbUtil.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(READ_USER_QUERY)) {
+                ps.setInt(1, id );
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        u.setId(rs.getInt("id"));
+                        u.setEmail(rs.getString("email"));
+                        u.setUsername(rs.getString("username"));
+                        u.setPassword(rs.getString("password"));
+                    }
                 }
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            return u;
+    }
+
+    public List<User> readAll (){
+        List<User> resultList = new ArrayList<>();
+        try (Connection conn = DbUtil.getConnection();
+        PreparedStatement ps = conn.prepareStatement(READ_ALL_QUERY);
+        ResultSet rs = ps.executeQuery()){
+            while (rs.next()){
+                User u = new User();
+                u.setId(rs.getInt("id"));
+                u.setEmail(rs.getString("email"));
+                u.setUsername(rs.getString("username"));
+                u.setPassword(rs.getString("password"));
+                resultList.add(u);
             }
         } catch (SQLException e){
             e.printStackTrace();
         }
-        return true;
+        return  resultList;
     }
 
-    public static void updateEmail (User u){
+    public void update(User u){
         try (Connection conn = DbUtil.getConnection();
-        PreparedStatement ps = conn.prepareStatement(UPDATE_EMAIL_QUERY)){
-            ps.setString(1,u.getEmail());
-            ps.setString(2, String.valueOf(u.getId()));
-            ps.executeUpdate();
-        } catch (SQLException e){
-            e.printStackTrace();
-        }
-    }
-
-    public static void updateUsername (User u){
-        try (Connection conn = DbUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(UPDATE_USERNAME_QUERY)){
+        PreparedStatement ps = conn.prepareStatement(UPDATE_USER_QUERY)){
             ps.setString(1,u.getUsername());
-            ps.setString(2, String.valueOf(u.getId()));
+            ps.setString(2,u.getEmail());
+            ps.setString(3,u.getPassword());
+            ps.setInt(4, u.getId());
             ps.executeUpdate();
+            System.out.println("Zmieniono dane używonika");
         } catch (SQLException e){
+            System.out.println("Nie udało się zaktualizować danych użytkownika");
             e.printStackTrace();
         }
     }
 
-    public static void updatePassword (User u){
-        try (Connection conn = DbUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(UPDATE_PASSWORD_QUERY)){
-            ps.setString(1,u.getPassword());
-            ps.setString(2, String.valueOf(u.getId()));
-            ps.executeUpdate();
-        } catch (SQLException e){
-            e.printStackTrace();
-        }
-    }
-
-    public static void delete (User u){
+    public void delete (Integer id){
         try (Connection conn = DbUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(DELETE_USER_QUERY)){
-            ps.setString(1,String.valueOf(u.getId()));
-            ps.executeUpdate();
+            ps.setInt(1, id);
+            int howMany = ps.executeUpdate();
+
+            if (howMany == 0) {
+                System.out.println("Nie ma takiego użytkownika");
+            } else if (howMany == 1) {
+                System.out.println("Poprawnie usunięto użytkownika");
+            } else {
+                throw new SQLException("Operacja zakończyła się modyfikacją więcej niż jednego wiersza tabeli");
+            }
         } catch (SQLException e){
+            System.out.println("W trakcie usuwania użytkownika wystąpił błąd");
             e.printStackTrace();
         }
     }

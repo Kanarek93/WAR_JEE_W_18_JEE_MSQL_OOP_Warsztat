@@ -9,7 +9,7 @@ import static pl.coderslab.Static_Parameters.*;
 
 public class User {
 
-    private long id;
+    private Integer id;
     private String email;
     private String username;
     private String password;
@@ -18,18 +18,19 @@ public class User {
 
         this.email = email;
         this.username = username;
+        //hashować tutaj czy w DAO?
         this.password = hashPassword(password);
-
-        if (isInsertable()){
-            this.id = UserDAO.create(this);
-        }
-        else {
-            this.id = 0;
-        }
+        this.id = 0;
     }
 
-    public long getId() {
+    public User () {}
+
+    public Integer getId() {
         return id;
+    }
+
+    public void setId(Integer id){
+        this.id = id;
     }
 
     public String getEmail() {
@@ -37,18 +38,7 @@ public class User {
     }
 
     public void setEmail(String email) {
-        if (checkPassword("Aby zmienić email wprowadź hasło: ")) {
-            if (isEmail(email)) {
-                this.email = email;
-                if (isInsertable()) {
-                    if (isInBase()) {
-                        UserDAO.updateEmail(this);
-                    } else {
-                        UserDAO.create(this);
-                    }
-                }
-            }
-        }
+        this.email = email;
     }
 
     public String getUsername() {
@@ -56,52 +46,27 @@ public class User {
     }
 
     public void setUsername(String username) {
-        if (checkPassword("Aby zmienić nazwę użytkownika wprowadź hasło: ")) {
-            this.username = username;
-            if (isInsertable()) {
-                if (isInBase()) {
-                    UserDAO.updateUsername(this);
-                } else {
-                    UserDAO.create(this);
-                }
-            }
-        }
-
+        this.username = username;
     }
 
-    //nie podoba mi się, że to jest publiczne, ale nie mam pomysłu jak je włożyć do bazy danych inaczej,
-    //a jest zahashowane więc mniejsze zło...
     public String getPassword() {
         return password;
     }
 
-    //zmiana hasła
     public void setPassword(String password) {
-        if (checkPassword("Aby zmienić hasło wpisz stare hasło:")){
-            this.password = password;
-            System.out.println("Hasło zostało zmienione");
-            if (isInsertable()){
-                if (isInBase()){
-                    UserDAO.updatePassword(this);
-                }
-                else {
-                    UserDAO.create(this);
-                }
-            }
-        }
-
+        this.password = password;
     }
 
-    //sprawdza czy można włożyć usera do bazy danych bez błędu
-    private boolean isInsertable (){
-        if(!UserDAO.isEmailUnique(this.email)) {
-            System.out.println("W bazie jest już ten email");
+    //sprawdza czy dane są wypełnione, mają dobre długośi i email ma odpowiedni format
+    //NIE SPRAWDZA unikalności emaila
+    private boolean isInsertable (String email, String username, String password){
+        if (username.isEmpty() || password.isEmpty()){
             return false;
         }
-        else if (!isEmail(this.email)){
-
+        if (!isEmail(email)){
+            return false;
         }
-        else if (this.email.length() > EMAIL_LENGTH || this.username.length() > USERNAME_LENGTH){
+        if (email.length() > EMAIL_LENGTH || username.length() > USERNAME_LENGTH){
             System.out.println("Wprowadzone dane są za długie. Parametry:\n" +
                     "username - " + USERNAME_LENGTH + "\n" +
                     "email - " + EMAIL_LENGTH
@@ -114,9 +79,7 @@ public class User {
 
     //zahashowie hasła
     private String hashPassword(String password) {
-
         return BCrypt.hashpw(password, BCrypt.gensalt());
-
     }
 
     //sprawdzenie hasła przy próbie zmiany innych parametrów
@@ -133,10 +96,10 @@ public class User {
         }
     }
 
-    //sprawdzanie formatu emaila (czy to potrzebne?)
+    //sprawdzanie formatu emaila
     private boolean isEmail (String address) {
         if (address.matches(
-                "([a-z1-9]*@[a-z1-9]*.[a-z]*)")){
+                "[_a-zA-Z0-9-]+(\\.[_a-zA-Z0-9-]+)*@[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)*\\.([a-zA-Z]{2,}){1}")){
             return true;
         }
         else {
@@ -145,23 +108,14 @@ public class User {
         }
     }
 
-    //sprawdzanie czy element jest w bazie. Opłaca się robić takie metody które nie dają uzysku w kodzie?
-    private boolean isInBase (){
-        if (this.id == 0){
-            return false;
-        } else {
-            return true;
-        }
-    }
-
-    public void delete (){
-        if (this.isInBase()){
-            UserDAO.delete(this);
-            this.id = 0;
-        }
-        this.email = "";
-        this.password = "";
-        this.username = "";
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", email='" + email + '\'' +
+                ", username='" + username + '\'' +
+                ", password='" + password + '\'' +
+                '}';
     }
 }
 
